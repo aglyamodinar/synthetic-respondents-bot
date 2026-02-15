@@ -4,7 +4,7 @@ Telegram bot + backend for synthetic respondent studies with SSR scoring.
 
 ## Product Overview
 
-🇷🇺 **Synthetic Respondents Bot**  
+**Бот синтетические респонденты**  
 🚀 Telegram-бот + AI-платформа для быстрых синтетических исследований: загружаешь стимулы, запускаешь симуляцию респондентов и получаешь красивый PDF-отчет с метриками за минуты.  
 🧠 OpenRouter-генерация ответов + SSR-скоринг  
 📊 Mean / Median / SD / T2B / CI / Distribution  
@@ -13,7 +13,7 @@ Telegram bot + backend for synthetic respondent studies with SSR scoring.
 💸 Прозрачная оценка стоимости каждого run  
 ⚡ Идеально для smoke-тестов гипотез, креативов и продуктовых решений без долгих полевых опросов.
 
-🇬🇧 **Synthetic Respondents Bot**  
+**Synthetic Respondents Bot**  
 🚀 A Telegram bot + AI research platform for fast synthetic studies: upload stimuli, run respondent simulation, and get a polished PDF report with actionable metrics in minutes.  
 🧠 OpenRouter-powered response generation + SSR scoring  
 📊 Mean / Median / SD / T2B / CI / Distribution  
