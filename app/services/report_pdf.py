@@ -3,7 +3,17 @@ from __future__ import annotations
 from pathlib import Path
 
 from reportlab.lib.pagesizes import A4
+from reportlab.lib.utils import simpleSplit
 from reportlab.pdfgen import canvas
+
+
+def _draw_wrapped(c: canvas.Canvas, text: str, x: int, y: int, width: int, font: str, size: int) -> int:
+    c.setFont(font, size)
+    lines = simpleSplit(text, font, size, width)
+    for line in lines:
+        c.drawString(x, y, line)
+        y -= size + 2
+    return y
 
 
 def build_report_pdf(
@@ -12,39 +22,79 @@ def build_report_pdf(
     study_id: str,
     run_id: str,
     language: str,
+    question_text: str,
+    model_name: str,
+    respondent_count: int,
+    estimated_cost_usd: float,
     rows: list[dict],
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(path), pagesize=A4)
-    width, height = A4
+    _, height = A4
 
     y = height - 40
     c.setFont("Helvetica-Bold", 14)
     c.drawString(40, y, "Synthetic Research Report (MVP)")
     y -= 18
     c.setFont("Helvetica", 10)
-    c.drawString(40, y, f"Study: {study_id} | Run: {run_id} | Language: {language}")
+    c.drawString(
+        40,
+        y,
+        f"Study: {study_id} | Run: {run_id} | Language: {language} | Model: {model_name}",
+    )
+    y -= 14
+    c.drawString(40, y, f"Respondents per stimulus: {respondent_count} | Estimated Cost: ${estimated_cost_usd:.4f}")
     y -= 16
     c.drawString(40, y, "Synthetic Research - Uncalibrated Beta")
-    y -= 20
-
-    headers = "stimulus_id | segment | mean | median | sd | T2B | B2B | TB"
-    c.setFont("Helvetica-Bold", 9)
-    c.drawString(40, y, headers)
-    y -= 14
-    c.setFont("Helvetica", 9)
+    y -= 8
+    y = _draw_wrapped(c, f"Question: {question_text}", 40, y, 510, "Helvetica", 9)
+    y -= 8
 
     for row in rows:
-        line = (
-            f"{row['stimulus_id']} | {row['segment_key']} | {row['mean']:.2f} | {row['median']:.2f} | "
-            f"{row['sd']:.2f} | {row['top2box']:.2%} | {row['bottom2box']:.2%} | {row['topbox']:.2%}"
-        )
-        c.drawString(40, y, line[:130])
-        y -= 12
-        if y < 50:
+        if y < 140:
             c.showPage()
             y = height - 40
-            c.setFont("Helvetica", 9)
+
+        c.setFont("Helvetica-Bold", 10)
+        c.drawString(40, y, f"Stimulus {row['stimulus_id']} | Segment: {row['segment_key']}")
+        y -= 12
+        c.setFont("Helvetica", 9)
+        c.drawString(
+            40,
+            y,
+            (
+                f"Mean={row['mean']:.2f}  Median={row['median']:.2f}  SD={row['sd']:.2f}  "
+                f"Variance={row['variance']:.2f}  Mode={row['mode']:.0f}"
+            ),
+        )
+        y -= 12
+        c.drawString(
+            40,
+            y,
+            (
+                f"T2B={row['top2box']:.2%}  B2B={row['bottom2box']:.2%}  "
+                f"TopBox={row['topbox']:.2%}  NetScore={row['net_score']:.2%}"
+            ),
+        )
+        y -= 12
+        c.drawString(
+            40,
+            y,
+            (
+                f"CI Mean=[{row['ci_mean_low']:.2f}, {row['ci_mean_high']:.2f}]  "
+                f"CI T2B=[{row['ci_t2b_low']:.2%}, {row['ci_t2b_high']:.2%}]"
+            ),
+        )
+        y -= 12
+        dist = row["distribution"]
+        c.drawString(
+            40,
+            y,
+            (
+                f"Distribution: 1={dist.get('1', 0.0):.2%}, 2={dist.get('2', 0.0):.2%}, "
+                f"3={dist.get('3', 0.0):.2%}, 4={dist.get('4', 0.0):.2%}, 5={dist.get('5', 0.0):.2%}"
+            ),
+        )
+        y -= 16
 
     c.save()
-

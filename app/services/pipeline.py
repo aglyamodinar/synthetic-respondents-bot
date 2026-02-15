@@ -194,25 +194,37 @@ async def execute_run_async(run_id: str) -> None:
                     "mean": row["mean"],
                     "median": row["median"],
                     "sd": row["sd"],
+                    "variance": row["variance"],
+                    "mode": row["mode"],
                     "top2box": row["top2box"],
                     "bottom2box": row["bottom2box"],
                     "topbox": row["topbox"],
+                    "net_score": row["net_score"],
+                    "distribution": row["distribution"],
+                    "ci_mean_low": row["ci_mean_low"],
+                    "ci_mean_high": row["ci_mean_high"],
+                    "ci_t2b_low": row["ci_t2b_low"],
+                    "ci_t2b_high": row["ci_t2b_high"],
                 }
             )
 
         report_path = settings.reports_path / f"{run_id}.pdf"
+        run.estimated_cost_usd = estimate_cost_usd(run.model_name, total_in, total_out)
         build_report_pdf(
             path=Path(report_path),
             study_id=study.id,
             run_id=run_id,
             language=study.language,
+            question_text=study.question_text,
+            model_name=run.model_name,
+            respondent_count=run.respondent_count,
+            estimated_cost_usd=run.estimated_cost_usd,
             rows=report_rows,
         )
         db.add(Artifact(run_id=run_id, artifact_type="pdf", path=str(report_path)))
 
         run.token_input = total_in
         run.token_output = total_out
-        run.estimated_cost_usd = estimate_cost_usd(run.model_name, total_in, total_out)
         run.status = "completed"
         run.finished_at = datetime.utcnow()
         study.status = "completed"

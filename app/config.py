@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     app_port: int = 8000
 
     bot_token: str = ""
+    bot_run_mode: str = "polling"
+    bot_webhook_path: str = "/telegram/webhook"
+    bot_webhook_secret: str = ""
+    public_base_url: str = ""
     openrouter_api_key: str = ""
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
     openrouter_model: str = "openai/gpt-5-nano"
@@ -38,6 +42,12 @@ class Settings(BaseSettings):
     max_output_tokens: int = 80
 
     @property
+    def bot_webhook_url(self) -> str:
+        if not self.public_base_url:
+            return ""
+        return self.public_base_url.rstrip("/") + self.bot_webhook_path
+
+    @property
     def reports_path(self) -> Path:
         return Path(self.reports_dir)
 
@@ -45,4 +55,3 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
-
