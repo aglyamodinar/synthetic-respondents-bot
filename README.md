@@ -42,4 +42,4 @@ python -m app.bot.runner
 - Output report: PDF
 - History persisted in Postgres
 - Response language mirrors input language (`ru`/`en`)
-
+- You can override purchase-intent wording with `/set_question`

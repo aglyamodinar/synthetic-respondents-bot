@@ -40,6 +40,7 @@ async def _generate_one(
     question_text: str,
     stimulus_text: str,
     segment_key: str,
+    respondent_idx: int,
 ) -> dict:
     prompt = build_prompt(
         language=language,
@@ -54,6 +55,7 @@ async def _generate_one(
             "question_text": question_text,
             "stimulus_text": stimulus_text,
             "segment_key": segment_key,
+            "respondent_idx": respondent_idx,
         }
     )
     cached = get_cached_json(cache_key)
@@ -89,8 +91,7 @@ async def execute_run_async(run_id: str) -> None:
 
     total_in = 0
     total_out = 0
-    text_bucket: dict[tuple[int, str], list[str]] = defaultdict(list)
-    response_rows: list[dict] = []
+    grouped_rows: dict[tuple[int, str], list[dict]] = defaultdict(list)
     segments = _segment_keys(study.segments or {})
 
     for stimulus in stimuli:
@@ -103,10 +104,10 @@ async def execute_run_async(run_id: str) -> None:
                 question_text=study.question_text,
                 stimulus_text=stimulus.stimulus_text,
                 segment_key=seg,
+                respondent_idx=respondent_idx,
             )
             txt = generated["text"]
-            text_bucket[(stimulus.id, seg)].append(txt)
-            response_rows.append(
+            grouped_rows[(stimulus.id, seg)].append(
                 {
                     "stimulus_pk": stimulus.id,
                     "segment_key": seg,
@@ -120,7 +121,8 @@ async def execute_run_async(run_id: str) -> None:
     metrics_rows: list[dict] = []
     enriched_responses: list[dict] = []
 
-    for (stimulus_pk, segment_key), texts in text_bucket.items():
+    for (stimulus_pk, segment_key), rows in grouped_rows.items():
+        texts = [row["response_text"] for row in rows]
         pmfs = score_texts_to_pmfs(texts, study.language)
         exp = expected_scores(pmfs)
         discrete_scores = np.array([pmf_to_argmax_score(p) for p in pmfs], dtype=int)
@@ -129,13 +131,13 @@ async def execute_run_async(run_id: str) -> None:
         m["segment_key"] = segment_key
         metrics_rows.append(m)
 
-        for idx, (txt, pmf, exp_score) in enumerate(zip(texts, pmfs, exp)):
+        for row, pmf, exp_score in zip(rows, pmfs, exp):
             enriched_responses.append(
                 {
                     "stimulus_pk": stimulus_pk,
                     "segment_key": segment_key,
-                    "respondent_idx": idx,
-                    "response_text": txt,
+                    "respondent_idx": row["respondent_idx"],
+                    "response_text": row["response_text"],
                     "pmf": pmf.tolist(),
                     "expected_score": float(exp_score),
                 }
@@ -229,4 +231,3 @@ def execute_run(run_id: str) -> None:
                 run.error_message = str(exc)
                 db.commit()
         raise
-

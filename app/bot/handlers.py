@@ -18,6 +18,7 @@ from app.services.study_service import (
     latest_run_for_study,
     replace_stimuli,
     update_study_mode,
+    update_study_question,
     update_study_segments,
 )
 from app.utils.language import detect_language
@@ -47,14 +48,25 @@ def _parse_segments(raw: str) -> dict:
     return segments
 
 
+def _validate_segments(segments: dict) -> tuple[list[str], list[str]]:
+    bad_groups = [k for k in segments if k not in SEGMENT_CATALOG]
+    bad_values: list[str] = []
+    for group, values in segments.items():
+        allowed = set(SEGMENT_CATALOG.get(group, []))
+        for value in values:
+            if value not in allowed:
+                bad_values.append(f"{group}:{value}")
+    return bad_groups, bad_values
+
+
 @router.message(Command("start"))
 async def cmd_start(message: Message) -> None:
     lang = detect_language(message.text or "")
     await message.answer(
         _msg(
             lang,
-            "Готово. Создайте исследование: /new_study <название>",
-            "Ready. Create a study: /new_study <title>",
+            "Готово. Создайте исследование: /new_study <название>\nКоманды: /set_mode /set_segments /set_question /upload_stimuli /run /status /report /history",
+            "Ready. Create a study: /new_study <title>\nCommands: /set_mode /set_segments /set_question /upload_stimuli /run /status /report /history",
         )
     )
 
@@ -115,13 +127,42 @@ async def cmd_set_segments(message: Message) -> None:
         return
 
     segments = _parse_segments(raw)
-    valid_keys = set(SEGMENT_CATALOG.keys())
-    bad = [k for k in segments if k not in valid_keys]
-    if bad:
-        await message.answer(_msg(lang, f"Неизвестные группы: {bad}", f"Unknown groups: {bad}"))
+    bad_groups, bad_values = _validate_segments(segments)
+    if bad_groups:
+        await message.answer(_msg(lang, f"Неизвестные группы: {bad_groups}", f"Unknown groups: {bad_groups}"))
+        return
+    if bad_values:
+        await message.answer(
+            _msg(
+                lang,
+                f"Неизвестные значения сегментов: {bad_values}",
+                f"Unknown segment values: {bad_values}",
+            )
+        )
         return
     update_study_segments(study.id, segments)
     await message.answer(_msg(lang, "Сегменты обновлены.", "Segments updated."))
+
+
+@router.message(Command("set_question"))
+async def cmd_set_question(message: Message) -> None:
+    study = get_latest_study(message.from_user.id)
+    lang = study.language if study else detect_language(message.text or "")
+    if not study:
+        await message.answer(_msg(lang, "Сначала создайте исследование.", "Create a study first."))
+        return
+    raw = (message.text or "").replace("/set_question", "", 1).strip()
+    if not raw:
+        await message.answer(
+            _msg(
+                lang,
+                "Формат: /set_question <текст вопроса>",
+                "Format: /set_question <question text>",
+            )
+        )
+        return
+    update_study_question(study.id, raw)
+    await message.answer(_msg(lang, "Вопрос обновлен.", "Question updated."))
 
 
 @router.message(F.document)

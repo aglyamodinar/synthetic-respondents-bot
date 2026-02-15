@@ -66,6 +66,15 @@ def update_study_segments(study_id: str, segments: dict) -> None:
         db.commit()
 
 
+def update_study_question(study_id: str, question_text: str) -> None:
+    with SessionLocal() as db:
+        study = db.get(Study, study_id)
+        if not study:
+            raise ValueError("Study not found.")
+        study.question_text = question_text.strip()
+        db.commit()
+
+
 def replace_stimuli(study_id: str, items: Iterable[dict]) -> int:
     with SessionLocal() as db:
         study = db.get(Study, study_id)
@@ -133,4 +142,3 @@ def get_artifact_for_run(run_id: str, artifact_type: str = "pdf") -> Artifact | 
             .limit(1)
         )
         return db.execute(stmt).scalar_one_or_none()
-

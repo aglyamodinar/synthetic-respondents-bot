@@ -61,6 +61,7 @@ Give clients a Telegram-first tool to simulate synthetic respondents and score p
 - `/upload_stimuli`
 - `/set_mode`
 - `/set_segments`
+- `/set_question`
 - `/run`
 - `/status`
 - `/report`
@@ -95,4 +96,3 @@ Give clients a Telegram-first tool to simulate synthetic respondents and score p
 - Every report tagged: `Synthetic Research - Uncalibrated Beta` until calibrated
 - Version all model/prompt settings in each run
 - Track token usage and cost per study
-
