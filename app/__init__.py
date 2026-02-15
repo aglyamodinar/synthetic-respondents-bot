@@ -1,0 +1,1 @@
+"""Synthetic respondents bot package."""
