@@ -44,6 +44,11 @@ Please include in your first message:
 - expected testing volume per month
 - your primary goal (conversion, creatives, offer testing, messaging)
 
+## Community
+
+Join my Telegram channel about vibe coding and product marketing:  
+**https://t.me/+1lZYdeb7FVQxYWRi**
+
 ## Quick Start
 
 1. Copy env:
