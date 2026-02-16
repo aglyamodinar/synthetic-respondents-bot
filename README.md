@@ -2,6 +2,28 @@
 
 Telegram bot + backend for synthetic respondent studies with SSR scoring.
 
+## Deployment & Consulting
+
+### RU
+Хотите внедрить этого бота под ваш бизнес-кейс (маркетинг, продукт, креативы, UX-тесты)?
+
+Пишите в Telegram: **[@aglamov](https://t.me/aglamov)**
+
+Что прислать в первом сообщении:
+- ниша или тип продукта
+- сколько тестов в месяц планируете
+- что хотите улучшить (конверсия, креативы, офферы, упаковка)
+
+### EN
+Need help deploying and customizing this bot for your use case (marketing, product, creatives, UX testing)?
+
+Contact on Telegram: **[@aglamov](https://t.me/aglamov)**
+
+Please include in your first message:
+- your niche/product type
+- expected testing volume per month
+- your primary goal (conversion, creatives, offer testing, messaging)
+
 ## Quick Start
 
 1. Copy env:
