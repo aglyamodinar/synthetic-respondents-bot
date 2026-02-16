@@ -15,7 +15,7 @@ from app.services.openrouter_client import OpenRouterClient
 from app.services.pricing import estimate_cost_usd
 from app.services.prompting import build_prompt
 from app.services.report_pdf import build_report_pdf
-from app.services.ssr_service import expected_scores, pmf_to_argmax_score, score_texts_to_pmfs
+from app.services.ssr_service import expected_scores, score_texts_to_pmfs
 from app.utils.cache import get_cached_json, make_cache_key, set_cached_json
 from app.utils.metrics import compute_metrics
 
@@ -47,6 +47,7 @@ async def _generate_one(
         question_text=question_text,
         stimulus_text=stimulus_text,
         segment_key=segment_key,
+        respondent_idx=respondent_idx,
     )
     cache_key = make_cache_key(
         {
@@ -85,6 +86,13 @@ async def execute_run_async(run_id: str) -> None:
         if not stimuli:
             raise ValueError("No stimuli loaded.")
 
+        model_name = run.model_name
+        respondent_count = run.respondent_count
+        study_language = study.language or "ru"
+        study_question_text = study.question_text
+        study_segments = study.segments or {}
+        stimuli_data = [{"id": s.id, "text": s.stimulus_text} for s in stimuli]
+
         run.status = "running"
         run.started_at = datetime.utcnow()
         db.commit()
@@ -92,24 +100,24 @@ async def execute_run_async(run_id: str) -> None:
     total_in = 0
     total_out = 0
     grouped_rows: dict[tuple[int, str], list[dict]] = defaultdict(list)
-    segments = _segment_keys(study.segments or {})
+    segments = _segment_keys(study_segments)
 
-    for stimulus in stimuli:
-        for respondent_idx in range(run.respondent_count):
+    for stimulus in stimuli_data:
+        for respondent_idx in range(respondent_count):
             seg = segments[respondent_idx % len(segments)]
             generated = await _generate_one(
                 llm=llm,
-                model=run.model_name,
-                language=study.language,
-                question_text=study.question_text,
-                stimulus_text=stimulus.stimulus_text,
+                model=model_name,
+                language=study_language,
+                question_text=study_question_text,
+                stimulus_text=stimulus["text"],
                 segment_key=seg,
                 respondent_idx=respondent_idx,
             )
             txt = generated["text"]
-            grouped_rows[(stimulus.id, seg)].append(
+            grouped_rows[(stimulus["id"], seg)].append(
                 {
-                    "stimulus_pk": stimulus.id,
+                    "stimulus_pk": stimulus["id"],
                     "segment_key": seg,
                     "respondent_idx": respondent_idx,
                     "response_text": txt,
@@ -123,9 +131,12 @@ async def execute_run_async(run_id: str) -> None:
 
     for (stimulus_pk, segment_key), rows in grouped_rows.items():
         texts = [row["response_text"] for row in rows]
-        pmfs = score_texts_to_pmfs(texts, study.language)
+        pmfs = score_texts_to_pmfs(texts, study_language)
         exp = expected_scores(pmfs)
-        discrete_scores = np.array([pmf_to_argmax_score(p) for p in pmfs], dtype=int)
+        # Sample from PMF instead of argmax to preserve uncertainty/variance in discrete metrics.
+        rng = np.random.default_rng()
+        scale = np.array([1, 2, 3, 4, 5], dtype=int)
+        discrete_scores = np.array([int(rng.choice(scale, p=p)) for p in pmfs], dtype=int)
         m = compute_metrics(discrete_scores)
         m["stimulus_pk"] = stimulus_pk
         m["segment_key"] = segment_key
@@ -214,10 +225,10 @@ async def execute_run_async(run_id: str) -> None:
             path=Path(report_path),
             study_id=study.id,
             run_id=run_id,
-            language=study.language,
-            question_text=study.question_text,
-            model_name=run.model_name,
-            respondent_count=run.respondent_count,
+            language=study_language,
+            question_text=study_question_text,
+            model_name=model_name,
+            respondent_count=respondent_count,
             estimated_cost_usd=run.estimated_cost_usd,
             rows=report_rows,
         )

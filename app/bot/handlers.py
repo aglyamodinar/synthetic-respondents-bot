@@ -27,6 +27,7 @@ from app.workers.tasks import run_study_task
 
 router = Router()
 settings = get_settings()
+awaiting_stimuli_users: set[int] = set()
 
 
 def _msg(lang: str, ru: str, en: str) -> str:
@@ -76,13 +77,23 @@ async def cmd_new_study(message: Message) -> None:
     lang = detect_language(message.text or "")
     title = (message.text or "").replace("/new_study", "", 1).strip() or "Untitled Study"
     study_id = create_study(message.from_user.id, title, lang)
+    study = get_study(study_id)
+    mode = study.mode if study else "pilot"
+    respondents = MODES.get(mode, 250)
     await message.answer(
         _msg(
             lang,
-            f"Создано исследование `{study_id}`.\nЗагрузите стимулы: /upload_stimuli (текстом или файлом).",
-            f"Study `{study_id}` created.\nUpload stimuli via /upload_stimuli (text or file).",
-        ),
-        parse_mode="Markdown",
+            (
+                f"Создано исследование {study_id}.\n"
+                f"Текущий режим: {mode} ({respondents} респондентов на стимул).\n"
+                "Загрузите стимулы: /upload_stimuli (текстом или файлом)."
+            ),
+            (
+                f"Study {study_id} created.\n"
+                f"Current mode: {mode} ({respondents} respondents per stimulus).\n"
+                "Upload stimuli via /upload_stimuli (text or file)."
+            ),
+        )
     )
 
 
@@ -184,6 +195,7 @@ async def file_upload(message: Message) -> None:
     raw = content.read().decode("utf-8")
     items = parse_csv_stimuli(raw, study.language) if suffix == ".csv" else parse_txt_stimuli(raw, study.language)
     count = replace_stimuli(study.id, items)
+    awaiting_stimuli_users.discard(message.from_user.id)
     await message.answer(_msg(lang, f"Загружено стимулов: {count}", f"Stimuli loaded: {count}"))
 
 
@@ -197,6 +209,7 @@ async def text_upload(message: Message) -> None:
 
     raw = (message.text or "").replace("/upload_stimuli", "", 1).strip()
     if not raw:
+        awaiting_stimuli_users.add(message.from_user.id)
         await message.answer(
             _msg(
                 lang,
@@ -207,6 +220,7 @@ async def text_upload(message: Message) -> None:
         return
     items = parse_txt_stimuli(raw, study.language)
     count = replace_stimuli(study.id, items)
+    awaiting_stimuli_users.discard(message.from_user.id)
     await message.answer(_msg(lang, f"Загружено стимулов: {count}", f"Stimuli loaded: {count}"))
 
 
@@ -223,11 +237,15 @@ async def cmd_run(message: Message) -> None:
     await message.answer(
         _msg(
             lang,
-            f"Запуск `{run_id}` поставлен в очередь.",
-            f"Run `{run_id}` has been queued.",
-        ),
-        parse_mode="Markdown",
+            f"Запуск {run_id} поставлен в очередь.",
+            f"Run {run_id} has been queued.",
+        )
     )
+
+
+@router.message(F.text.casefold().in_({"run", "запуск"}))
+async def cmd_run_plain(message: Message) -> None:
+    await cmd_run(message)
 
 
 @router.message(Command("status"))
@@ -241,14 +259,21 @@ async def cmd_status(message: Message) -> None:
     if not run:
         await message.answer(_msg(lang, "Запусков пока нет.", "No runs yet."))
         return
+    details = ""
+    if run.status == "failed" and run.error_message:
+        details = f"\nError: {run.error_message[:500]}"
     await message.answer(
         _msg(
             lang,
-            f"Run `{run.id}`: {run.status}\nCost: ${run.estimated_cost_usd:.4f}",
-            f"Run `{run.id}`: {run.status}\nCost: ${run.estimated_cost_usd:.4f}",
-        ),
-        parse_mode="Markdown",
+            f"Run {run.id}: {run.status}\nCost: ${run.estimated_cost_usd:.4f}{details}",
+            f"Run {run.id}: {run.status}\nCost: ${run.estimated_cost_usd:.4f}{details}",
+        )
     )
+
+
+@router.message(F.text.casefold().in_({"status", "статус"}))
+async def cmd_status_plain(message: Message) -> None:
+    await cmd_status(message)
 
 
 @router.message(Command("report"))
@@ -296,8 +321,29 @@ async def cmd_rerun(message: Message) -> None:
     await message.answer(
         _msg(
             lang,
-            f"Повторный запуск `{run_id}` поставлен в очередь.",
-            f"Rerun `{run_id}` has been queued.",
-        ),
-        parse_mode="Markdown",
+            f"Повторный запуск {run_id} поставлен в очередь.",
+            f"Rerun {run_id} has been queued.",
+        )
     )
+
+
+@router.message(F.text)
+async def text_upload_followup(message: Message) -> None:
+    if not message.text:
+        return
+    if message.text.startswith("/"):
+        return
+    if message.from_user.id not in awaiting_stimuli_users:
+        return
+
+    study = get_latest_study(message.from_user.id)
+    lang = study.language if study else detect_language(message.text or "")
+    if not study:
+        awaiting_stimuli_users.discard(message.from_user.id)
+        await message.answer(_msg(lang, "Сначала создайте исследование.", "Create a study first."))
+        return
+
+    items = parse_txt_stimuli(message.text, study.language)
+    count = replace_stimuli(study.id, items)
+    awaiting_stimuli_users.discard(message.from_user.id)
+    await message.answer(_msg(lang, f"Загружено стимулов: {count}", f"Stimuli loaded: {count}"))

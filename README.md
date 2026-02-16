@@ -9,7 +9,25 @@ Telegram bot + backend for synthetic respondent studies with SSR scoring.
 cp .env.example .env
 ```
 
-2. Install:
+2. Start all services in Docker (webhook mode):
+```bash
+docker compose up -d --build
+```
+
+3. Start all services in Docker (polling mode):
+```bash
+docker compose --profile polling up -d --build
+```
+
+4. Check status/logs:
+```bash
+docker compose ps
+docker compose logs -f api worker
+```
+
+## Local Run (without Docker for app processes)
+
+1. Install:
 ```bash
 python3 -m venv .venv
 . .venv/bin/activate
@@ -17,22 +35,22 @@ pip install -e .
 pip install -e ../semantic-similarity-rating
 ```
 
-3. Start infra:
+2. Start infra:
 ```bash
 docker compose up -d postgres redis
 ```
 
-4. Run API:
+3. Run API:
 ```bash
 uvicorn app.main:app --reload
 ```
 
-5. Run worker:
+4. Run worker:
 ```bash
 celery -A app.workers.celery_app worker --loglevel=info
 ```
 
-6. Run bot:
+5. Run bot:
 ```bash
 python -m app.bot.runner
 ```
@@ -49,7 +67,12 @@ Set:
 BOT_RUN_MODE=polling
 ```
 
-Run:
+Run in Docker:
+```bash
+docker compose --profile polling up -d --build
+```
+
+Run locally:
 ```bash
 uvicorn app.main:app --reload
 celery -A app.workers.celery_app worker --loglevel=info
@@ -65,7 +88,12 @@ BOT_WEBHOOK_SECRET=replace_me
 PUBLIC_BASE_URL=https://your-public-domain
 ```
 
-Run:
+Run in Docker:
+```bash
+docker compose up -d --build
+```
+
+Run locally:
 ```bash
 uvicorn app.main:app --reload
 celery -A app.workers.celery_app worker --loglevel=info

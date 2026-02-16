@@ -15,12 +15,20 @@ settings = get_settings()
 def create_study(telegram_user_id: int, title: str, language: str) -> str:
     question = settings.default_question_ru if language == "ru" else settings.default_question_en
     with SessionLocal() as db:
+        prev_stmt = (
+            select(Study)
+            .where(Study.telegram_user_id == telegram_user_id)
+            .order_by(desc(Study.created_at))
+            .limit(1)
+        )
+        prev_study = db.execute(prev_stmt).scalar_one_or_none()
+        mode = prev_study.mode if prev_study and prev_study.mode in MODES else "pilot"
         study = Study(
             telegram_user_id=telegram_user_id,
             title=title,
             language=language,
             question_text=question,
-            mode="pilot",
+            mode=mode,
             segments={},
             status="draft",
         )

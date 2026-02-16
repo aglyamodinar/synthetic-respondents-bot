@@ -1,9 +1,8 @@
 import asyncio
 
-from aiogram import Bot, Dispatcher
+from aiogram import Bot
 
-from app.bot.handlers import router
-from app.bot.webhook import remove_webhook, setup_webhook
+from app.bot.webhook import dp, remove_webhook, setup_webhook
 from app.config import get_settings
 
 
@@ -12,8 +11,6 @@ async def main() -> None:
     if not settings.bot_token:
         raise RuntimeError("BOT_TOKEN is not configured.")
     bot = Bot(token=settings.bot_token)
-    dp = Dispatcher()
-    dp.include_router(router)
     if settings.bot_run_mode == "webhook":
         await setup_webhook()
         print(f"Webhook configured at {settings.bot_webhook_url}")

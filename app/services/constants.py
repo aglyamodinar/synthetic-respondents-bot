@@ -1,4 +1,5 @@
 MODES = {
+    "smoke": 10,
     "pilot": 250,
     "standard": 500,
     "validation": 1000,
@@ -40,4 +41,3 @@ LIKERT_REFERENCE_SETS = {
         "Definitely would buy",
     ],
 }
-

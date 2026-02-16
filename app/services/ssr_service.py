@@ -36,8 +36,3 @@ def score_texts_to_pmfs(texts: list[str], language: str) -> np.ndarray:
 def expected_scores(pmfs: np.ndarray) -> np.ndarray:
     scale = np.array([1, 2, 3, 4, 5], dtype=float)
     return (pmfs * scale[None, :]).sum(axis=1)
-
-
-def pmf_to_argmax_score(pmf: np.ndarray) -> int:
-    return int(np.argmax(pmf) + 1)
-

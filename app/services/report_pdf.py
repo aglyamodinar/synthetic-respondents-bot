@@ -4,7 +4,22 @@ from pathlib import Path
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.utils import simpleSplit
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.pdfgen import canvas
+
+
+def _register_unicode_font() -> tuple[str, str]:
+    regular_name = "Helvetica"
+    bold_name = "Helvetica-Bold"
+    font_path = Path("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf")
+    if not font_path.exists():
+        return regular_name, bold_name
+    try:
+        pdfmetrics.registerFont(TTFont("DejaVuSans", str(font_path)))
+        return "DejaVuSans", "DejaVuSans"
+    except Exception:
+        return regular_name, bold_name
 
 
 def _draw_wrapped(c: canvas.Canvas, text: str, x: int, y: int, width: int, font: str, size: int) -> int:
@@ -30,13 +45,14 @@ def build_report_pdf(
 ) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     c = canvas.Canvas(str(path), pagesize=A4)
+    font_regular, font_bold = _register_unicode_font()
     _, height = A4
 
     y = height - 40
-    c.setFont("Helvetica-Bold", 14)
+    c.setFont(font_bold, 14)
     c.drawString(40, y, "Synthetic Research Report (MVP)")
     y -= 18
-    c.setFont("Helvetica", 10)
+    c.setFont(font_regular, 10)
     c.drawString(
         40,
         y,
@@ -47,7 +63,7 @@ def build_report_pdf(
     y -= 16
     c.drawString(40, y, "Synthetic Research - Uncalibrated Beta")
     y -= 8
-    y = _draw_wrapped(c, f"Question: {question_text}", 40, y, 510, "Helvetica", 9)
+    y = _draw_wrapped(c, f"Question: {question_text}", 40, y, 510, font_regular, 9)
     y -= 8
 
     for row in rows:
@@ -55,10 +71,10 @@ def build_report_pdf(
             c.showPage()
             y = height - 40
 
-        c.setFont("Helvetica-Bold", 10)
+        c.setFont(font_bold, 10)
         c.drawString(40, y, f"Stimulus {row['stimulus_id']} | Segment: {row['segment_key']}")
         y -= 12
-        c.setFont("Helvetica", 9)
+        c.setFont(font_regular, 9)
         c.drawString(
             40,
             y,
